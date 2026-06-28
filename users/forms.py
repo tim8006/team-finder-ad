@@ -5,6 +5,12 @@ from django.core.exceptions import ValidationError
 from .models import User
 
 
+def validate_github_url(github_url):
+    if github_url and "github.com" not in github_url:
+        raise ValidationError("Ссылка должна вести на GitHub")
+    return github_url
+
+
 class RegisterForm(forms.ModelForm):
     password = forms.CharField(label="Пароль", widget=forms.PasswordInput)
 
@@ -13,14 +19,11 @@ class RegisterForm(forms.ModelForm):
         fields = ["name", "surname", "email", "password"]
 
     def clean_email(self):
-        email = self.cleaned_data["email"].lower()
-        if User.objects.filter(email=email).exists():
-            raise ValidationError("Пользователь с таким email уже зарегистрирован")
-        return email
+        return self.cleaned_data["email"].lower()
 
     def save(self, commit=True):
         user = super().save(commit=False)
-        user.email = self.cleaned_data["email"].lower()
+        user.email = self.cleaned_data["email"]
         user.set_password(self.cleaned_data["password"])
         if commit:
             user.save()
@@ -49,7 +52,4 @@ class ProfileEditForm(forms.ModelForm):
         fields = ["avatar", "name", "surname", "about", "phone", "github_url"]
 
     def clean_github_url(self):
-        github_url = self.cleaned_data.get("github_url")
-        if github_url and "github.com" not in github_url:
-            raise ValidationError("Ссылка должна вести на GitHub")
-        return github_url
+        return validate_github_url(self.cleaned_data.get("github_url"))

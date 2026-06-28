@@ -1,7 +1,12 @@
 from django.contrib.auth.base_user import BaseUserManager
-from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
+from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.utils import timezone
+
+
+MAX_NAME_LENGTH = 124
+MAX_SURNAME_LENGTH = 124
+MAX_PHONE_LENGTH = 20
+MAX_ABOUT_LENGTH = 256
 
 
 class UserManager(BaseUserManager):
@@ -25,30 +30,33 @@ class UserManager(BaseUserManager):
         return self.create_user(email, name, surname, password, **extra_fields)
 
 
-class User(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
-    name = models.CharField(max_length=124)
-    surname = models.CharField(max_length=124)
-    avatar = models.ImageField(upload_to="avatars/", blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True)
-    github_url = models.URLField(blank=True)
-    about = models.CharField(max_length=256, blank=True)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    date_joined = models.DateTimeField(default=timezone.now)
+class User(AbstractUser):
+    username = None
+
+    email = models.EmailField("Email", unique=True)
+    name = models.CharField("Имя", max_length=MAX_NAME_LENGTH)
+    surname = models.CharField("Фамилия", max_length=MAX_SURNAME_LENGTH)
+    avatar = models.ImageField("Аватар", upload_to="avatars/", blank=True, default="")
+    phone = models.CharField("Телефон", max_length=MAX_PHONE_LENGTH, blank=True, default="")
+    github_url = models.URLField("GitHub", blank=True, default="")
+    about = models.CharField("О себе", max_length=MAX_ABOUT_LENGTH, blank=True, default="")
     favorites = models.ManyToManyField(
         "projects.Project",
         related_name="interested_users",
         blank=True,
+        verbose_name="Избранные проекты",
     )
 
     objects = UserManager()
 
+    EMAIL_FIELD = "email"
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name", "surname"]
 
     class Meta:
-        ordering = ["-id"]
+        verbose_name = "пользователь"
+        verbose_name_plural = "пользователи"
+        ordering = ["id"]
 
     def __str__(self):
         return f"{self.name} {self.surname} <{self.email}>"

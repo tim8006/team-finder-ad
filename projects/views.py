@@ -1,27 +1,20 @@
 from django.contrib.auth.decorators import login_required
-from django.core.paginator import Paginator
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+
+from team_finder.utils import get_query_prefix, paginate_queryset
 
 from .forms import ProjectForm
 from .models import Project
 
 
-def _get_query_prefix(request):
-    params = request.GET.copy()
-    params.pop("page", None)
-    query_string = params.urlencode()
-    return query_string + "&" if query_string else ""
-
-
 def project_list(request):
-    queryset = Project.objects.order_by("-created_at").all()
-    paginator = Paginator(queryset, 12)
-    page_obj = paginator.get_page(request.GET.get("page"))
+    queryset = Project.objects.select_related("owner").prefetch_related("participants").order_by("-created_at")
+    page_obj = paginate_queryset(queryset, request)
     return render(
         request,
         "projects/project_list.html",
-        {"page_obj": page_obj, "projects": page_obj.object_list, "query_prefix": _get_query_prefix(request)},
+        {"page_obj": page_obj, "projects": page_obj.object_list, "query_prefix": get_query_prefix(request)},
     )
 
 
@@ -32,23 +25,24 @@ def favorite_projects(request):
 
 
 def project_detail(request, pk):
-    project = get_object_or_404(Project, pk=pk)
+    project = get_object_or_404(
+        Project.objects.select_related("owner").prefetch_related("participants"),
+        pk=pk,
+    )
     return render(request, "projects/project-details.html", {"project": project})
 
 
 @login_required(login_url="/users/login/")
 def project_create(request):
-    if request.method == "POST":
-        form = ProjectForm(request.POST)
-        if form.is_valid():
-            project = form.save(commit=False)
-            project.owner = request.user
-            project.save()
-            project.participants.add(request.user)
-            return redirect("projects:detail", pk=project.pk)
-    else:
-        form = ProjectForm()
-    return render(request, "projects/create-project.html", {"form": form, "is_edit": False})
+    form = ProjectForm(request.POST or None)
+    if request.method != "POST" or not form.is_valid():
+        return render(request, "projects/create-project.html", {"form": form, "is_edit": False})
+
+    project = form.save(commit=False)
+    project.owner = request.user
+    project.save()
+    project.participants.add(request.user)
+    return redirect("projects:detail", pk=project.pk)
 
 
 @login_required(login_url="/users/login/")
@@ -57,14 +51,12 @@ def project_edit(request, pk):
     if project.owner != request.user:
         return redirect("projects:detail", pk=project.pk)
 
-    if request.method == "POST":
-        form = ProjectForm(request.POST, instance=project)
-        if form.is_valid():
-            form.save()
-            return redirect("projects:detail", pk=project.pk)
-    else:
-        form = ProjectForm(instance=project)
-    return render(request, "projects/create-project.html", {"form": form, "is_edit": True})
+    form = ProjectForm(request.POST or None, instance=project)
+    if request.method != "POST" or not form.is_valid():
+        return render(request, "projects/create-project.html", {"form": form, "is_edit": True})
+
+    form.save()
+    return redirect("projects:detail", pk=project.pk)
 
 
 @login_required(login_url="/users/login/")
