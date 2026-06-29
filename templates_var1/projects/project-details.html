@@ -51,14 +51,16 @@
         </div>
         <div class="project-actions">
             {% if user.is_authenticated %}
+            {% with is_favorite=project.id in favorite_project_ids %}
             <button
-                    class="black-button project-fav-icon {% if project in user.favorites.all %}favorite{% else %}not-favorite{% endif %}"
+                    class="black-button project-fav-icon {% if is_favorite %}favorite{% else %}not-favorite{% endif %}"
                     data-project-id="{{ project.id }}"
-                    data-fav="{% if project in user.favorites.all %}true{% else %}false{% endif %}"
+                    data-fav="{% if is_favorite %}true{% else %}false{% endif %}"
                     title="Добавить в избранное"
             >
                 {% include 'includes/svg/heart.html' %}
             </button>
+            {% endwith %}
             {% endif %}
             <a href="#"
                class="black-button black-button-share share-button"
@@ -83,7 +85,7 @@
                             data-user-name="{{ request.user.name }} {{ request.user.surname }}"
                             data-user-avatar="{% if request.user.avatar %}{{ request.user.avatar.url }}{% else %}{% static 'images/default-avatar.png' %}{% endif %}"
                     >
-                        {% if request.user in project.participants.all %}
+                        {% if is_participant %}
                             Отказаться от участия
                         {% else %}
                             Участвовать
@@ -96,9 +98,10 @@
     </div>
 
     <div class="project-participants-card">
-    <h3>Участники проекта (<span id="participants-count" style="display:inline">{{ project.participants.all|length }}</span>)</h3>
+    {% with participants=project.participants.all %}
+    <h3>Участники проекта (<span id="participants-count" style="display:inline">{{ participants|length }}</span>)</h3>
     <div id="participants-list" class="participants-list">
-        {% for member in project.participants.all %}
+        {% for member in participants %}
         <a href="/users/{{ member.id }}" id="participant-{{ member.id }}">
             <div class="participant-item">
                 {% if member.avatar %}

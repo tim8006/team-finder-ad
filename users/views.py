@@ -19,12 +19,12 @@ def register_view(request):
         return redirect("projects:list")
 
     form = RegisterForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        user = form.save()
-        login(request, user)
-        return redirect("projects:list")
+    if request.method != "POST" or not form.is_valid():
+        return render(request, "users/register.html", {"form": form})
 
-    return render(request, "users/register.html", {"form": form})
+    user = form.save()
+    login(request, user)
+    return redirect("projects:list")
 
 
 def login_view(request):
@@ -32,12 +32,12 @@ def login_view(request):
         return redirect("projects:list")
 
     form = LoginForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        user = form.cleaned_data["user"]
-        login(request, user)
-        return redirect("projects:list")
+    if request.method != "POST" or not form.is_valid():
+        return render(request, "users/login.html", {"form": form})
 
-    return render(request, "users/login.html", {"form": form})
+    user = form.cleaned_data["user"]
+    login(request, user)
+    return redirect("projects:list")
 
 
 def logout_view(request):
@@ -66,13 +66,13 @@ def users_list(request):
         {
             "page_obj": page_obj,
             "active_filter": active_filter,
-            "query_prefix": _get_query_prefix(request),
+            "query_prefix": get_query_prefix(request),
         },
     )
 
 
 def user_detail(request, pk):
-    user = get_object_or_404(User, pk=pk)
+    user = get_object_or_404(User.objects.prefetch_related("owned_projects__participants"), pk=pk)
     return render(request, "users/user-details.html", {"user": user})
 
 
@@ -80,17 +80,19 @@ def user_detail(request, pk):
 def edit_profile(request):
     user = request.user
     form = ProfileEditForm(request.POST or None, request.FILES or None, instance=user)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        return redirect("users:detail", pk=user.pk)
-    return render(request, "users/edit_profile.html", {"form": form, "user": user})
+    if request.method != "POST" or not form.is_valid():
+        return render(request, "users/edit_profile.html", {"form": form, "user": user})
+
+    form.save()
+    return redirect("users:detail", pk=user.pk)
 
 
 @login_required(login_url="/users/login/")
 def change_password(request):
     form = PasswordChangeForm(request.user, request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        user = form.save()
-        update_session_auth_hash(request, user)
-        return redirect("users:detail", pk=request.user.pk)
-    return render(request, "users/change_password.html", {"form": form})
+    if request.method != "POST" or not form.is_valid():
+        return render(request, "users/change_password.html", {"form": form})
+
+    user = form.save()
+    update_session_auth_hash(request, user)
+    return redirect("users:detail", pk=request.user.pk)

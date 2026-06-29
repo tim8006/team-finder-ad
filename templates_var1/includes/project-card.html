@@ -15,14 +15,16 @@
                 </div>
             </div>
             {% if user.is_authenticated %}
+            {% with is_favorite=project.id in favorite_project_ids %}
             <button
-                    class="project-fav-icon {% if project in user.favorites.all %}favorite{% else %}not-favorite{% endif %}"
+                    class="project-fav-icon {% if is_favorite %}favorite{% else %}not-favorite{% endif %}"
                     data-project-id="{{ project.id }}"
-                    data-fav="{% if project in user.favorites.all %}true{% else %}false{% endif %}"
+                    data-fav="{% if is_favorite %}true{% else %}false{% endif %}"
                     title="Добавить в избранное"
             >
                 {% include 'includes/svg/heart.html' %}
             </button>
+            {% endwith %}
             {% endif %}
         </div>
 
@@ -41,10 +43,10 @@
                 {{ project.status }}
             {% endif %}
         </span>
-        {% with count=project.participants.count %}
+        {% with participants=project.participants.all %}
         <div class="project-participants">
             {% include 'includes/svg/participants.html' %}
-            {{ count }}
+            {{ participants|length }}
             {% if count|add:'-11'|divisibleby:100 or count|add:'-12'|divisibleby:100 or count|add:'-13'|divisibleby:100 or count|add:'-14'|divisibleby:100 %}
                 участников
             {% elif count|add:'-1'|divisibleby:10 %}
